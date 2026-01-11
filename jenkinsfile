@@ -1,0 +1,55 @@
+pipeline {
+  agent any
+
+  environment {
+    AWS_REGION = "us-east-1"
+    ECR_REGISTRY = "439891535932.dkr.ecr.us-east-1.amazonaws.com"
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Build Images') {
+      steps {
+        sh '''
+        docker build -t user-service ./user-service
+        docker build -t booking-service ./booking-service
+        docker build -t worker-service ./worker-service
+        docker build -t payment-service ./payment-service
+        docker build -t api-gateway ./api-gateway
+        '''
+      }
+    }
+
+    stage('Login to ECR') {
+      steps {
+        sh '''
+        aws ecr get-login-password --region $AWS_REGION |
+        docker login --username AWS --password-stdin $ECR_REGISTRY
+        '''
+      }
+    }
+
+    stage('Push Images') {
+      steps {
+        sh '''
+        docker tag user-service:latest $ECR_REGISTRY/user-service:latest
+        docker push $ECR_REGISTRY/user-service:latest
+        '''
+      }
+    }
+
+    stage('Deploy to EKS') {
+      steps {
+        sh '''
+        kubectl apply -f k8s/
+        '''
+      }
+    }
+  }
+}

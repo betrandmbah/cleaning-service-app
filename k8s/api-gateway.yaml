@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: api-gateway
-        image: api-gateway:latest
+        image: 439891535932.dkr.ecr.us-east-1.amazonaws.com/api-gateway:latest
         ports:
         - containerPort: 80
 ---

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: worker-service
-        image: worker-service:latest
+        image: 439891535932.dkr.ecr.us-east-1.amazonaws.com/worker-service:latest
         ports:
         - containerPort: 5003
 ---

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: payment-service
-        image: payment-service:latest
+        image: 439891535932.dkr.ecr.us-east-1.amazonaws.com/payment-service:latest
         ports:
         - containerPort: 5004
 ---

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: booking-service
-        image: booking-service:latest
+        image: 439891535932.dkr.ecr.us-east-1.amazonaws.com/booking-service:latest
         ports:
         - containerPort: 5002
 ---
