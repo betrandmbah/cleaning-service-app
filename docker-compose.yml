@@ -1,0 +1,24 @@
+
+services:
+  user-service:
+    build: ./user-service
+
+  booking-service:
+    build: ./booking-service
+
+  worker-service:
+    build: ./worker-service
+
+  payment-service:
+    build: ./payment-service
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8080:80"
+    depends_on:
+      - user-service
+      - booking-service
+      - worker-service
+      - payment-service
+
