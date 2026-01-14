@@ -1,19 +1,31 @@
-module "eks" {
-  source  = "terraform-aws-modules/eks/aws"
-  version = "20.0.0"
+resource "aws_iam_role" "eks_cluster_role" {
+  name = "eks-cluster-role"
 
-  cluster_name    = "cleaning-eks"
-  cluster_version = "1.29"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = { Service = "eks.amazonaws.com" }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
 
-  subnet_ids = module.vpc.private_subnets
-  vpc_id     = module.vpc.vpc_id
+resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
+  role       = aws_iam_role.eks_cluster_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
 
-  eks_managed_node_groups = {
-    default = {
-      min_size     = 2
-      max_size     = 5
-      desired_size = 2
-      instance_types = ["t3.medium"]
-    }
+resource "aws_eks_cluster" "this" {
+  name     = "cleaning-eks"
+  role_arn = aws_iam_role.eks_cluster_role.arn
+
+  vpc_config {
+    subnet_ids = [
+      aws_subnet.public_1.id,
+      aws_subnet.public_2.id
+    ]
   }
+
+  depends_on = [aws_iam_role_policy_attachment.eks_cluster_policy]
 }
