@@ -24,7 +24,7 @@ resource "aws_iam_role_policy_attachment" "worker_node_policies" {
 
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
-  node_group_name = "cleaning-nodes"
+  node_group_name = "cleaning-nodes-2"
   node_role_arn  = aws_iam_role.node_role.arn
   subnet_ids     = [
     aws_subnet.public_1.id,
