@@ -3,43 +3,58 @@ pipeline {
 
   environment {
     AWS_REGION = "us-east-1"
-    ECR_REGISTRY = "439891535932.dkr.ecr.us-east-1.amazonaws.com"
+    ACCOUNT_ID = "439891535932"
+    ECR        = "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    CLUSTER    = "cleaning-eks"
+    NAMESPACE  = "cleaning"
+    TAG        = "${BUILD_NUMBER}"
   }
 
   stages {
-
     stage('Checkout') {
-      steps {
-        checkout scm
-      }
+      steps { checkout scm }
     }
 
-    stage('Build Images') {
+    stage('ECR Login') {
       steps {
         sh '''
-        docker build -t user-service ./user-service
-        docker build -t booking-service ./booking-service
-        docker build -t worker-service ./worker-service
-        docker build -t payment-service ./payment-service
-        docker build -t api-gateway ./api-gateway
+          aws --version
+          kubectl version --client=true
+          aws ecr get-login-password --region $AWS_REGION \
+            | docker login --username AWS --password-stdin $ECR
         '''
       }
     }
 
-    stage('Login to ECR') {
+    stage('Build & Push Images') {
       steps {
         sh '''
-        aws ecr get-login-password --region $AWS_REGION |
-        docker login --username AWS --password-stdin $ECR_REGISTRY
+          set -e
+
+          build_push () {
+            NAME=$1
+            DIR=$2
+            echo "Building $NAME from $DIR"
+            docker build -t $NAME:$TAG $DIR
+            docker tag $NAME:$TAG $ECR/$NAME:$TAG
+            docker push $ECR/$NAME:$TAG
+          }
+
+          build_push user-service ./user-service
+          build_push booking-service ./booking-service
+          build_push payment-service ./payment-service
+          build_push worker-service ./worker-service
+          build_push api-gateway ./api-gateway
+          build_push frontend ./frontend
         '''
       }
     }
 
-    stage('Push Images') {
+    stage('Configure kubectl for EKS') {
       steps {
         sh '''
-        docker tag user-service:latest $ECR_REGISTRY/user-service:latest
-        docker push $ECR_REGISTRY/user-service:latest
+          aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER
+          kubectl get ns
         '''
       }
     }
@@ -47,7 +62,23 @@ pipeline {
     stage('Deploy to EKS') {
       steps {
         sh '''
-        kubectl apply -f k8s/
+          set -e
+
+          kubectl -n $NAMESPACE set image deployment/user-service user-service=$ECR/user-service:$TAG
+          kubectl -n $NAMESPACE set image deployment/booking-service booking-service=$ECR/booking-service:$TAG
+          kubectl -n $NAMESPACE set image deployment/payment-service payment-service=$ECR/payment-service:$TAG
+          kubectl -n $NAMESPACE set image deployment/worker-service worker-service=$ECR/worker-service:$TAG
+          kubectl -n $NAMESPACE set image deployment/api-gateway api-gateway=$ECR/api-gateway:$TAG
+          kubectl -n $NAMESPACE set image deployment/frontend frontend=$ECR/frontend:$TAG
+
+          kubectl -n $NAMESPACE rollout status deployment/user-service
+          kubectl -n $NAMESPACE rollout status deployment/booking-service
+          kubectl -n $NAMESPACE rollout status deployment/payment-service
+          kubectl -n $NAMESPACE rollout status deployment/worker-service
+          kubectl -n $NAMESPACE rollout status deployment/api-gateway
+          kubectl -n $NAMESPACE rollout status deployment/frontend
+
+          kubectl -n $NAMESPACE get pods -o wide
         '''
       }
     }
